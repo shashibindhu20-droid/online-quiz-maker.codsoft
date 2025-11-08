@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>QuizMaker — Create & Take Quizzes</title>
+<style>
+  :root{
+    --accent:#2563eb;
+    --muted:#6b7280;
+    --bg:#f3f6fb;
+    --card:#ffffff;
+    --success:#16a34a;
+    --danger:#ef4444;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,Segoe UI,Arial,sans-serif;background:var(--bg);color:#0f172a}
+  header{background:linear-gradient(90deg,var(--accent),#3b82f6);color:#fff;padding:14px 12px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .brand{font-weight:700}
+  nav{display:flex;gap:8px;flex-wrap:wrap}
+  nav button{background:#fff;color:var(--accent);border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600}
+  .container{max-width:1000px;margin:18px auto;padding:12px}
+  .grid{display:grid;grid-template-columns:1fr 340px;gap:18px}
+  .card{background:var(--card);border-radius:12px;padding:16px;box-shadow:0 6px 18px rgba(15,23,42,0.06)}
+  h2{margin:0 0 12px 0;color:var(--accent)}
+  .muted{color:var(--muted);font-size:14px}
+  input, textarea, select{width:100%;padding:10px;border-radius:8px;border:1px solid #e6eef8;font-size:14px;margin-top:8px}
+  label{font-size:13px;color:var(--muted);display:block;margin-top:10px}
+  button.primary{background:var(--accent);color:#fff;border:none;padding:10px 14px;border-radius:8px;cursor:pointer}
+  button.ghost{background:transparent;border:1px solid #e6eef8;padding:8px 12px;border-radius:8px;cursor:pointer}
+  .small{font-size:13px;color:var(--muted)}
+  .quiz-card{border:1px solid #eef2ff;padding:12px;border-radius:10px;margin-bottom:10px}
+  .question-box{margin-bottom:12px;padding:12px;border-radius:8px;background:#fbfdff;border:1px solid #eef6ff}
+  .options label{display:block;margin:8px 0;padding:8px;border-radius:8px;border:1px solid #e6eef8;cursor:pointer}
+  .center{display:flex;align-items:center;justify-content:center}
+  .toast{position:fixed;right:18px;bottom:18px;background:#111;color:#fff;padding:10px 14px;border-radius:8px;opacity:0;transform:translateY(10px);transition:0.28s}
+  .toast.show{opacity:1;transform:translateY(0)}
+  footer{text-align:center;color:var(--muted);margin-top:18px;padding-bottom:24px}
+  @media (max-width:920px){ .grid{grid-template-columns:1fr} nav{justify-content:center} }
+</style>
+</head>
+<body>
+
+<header>
+  <div style="display:flex;gap:12px;align-items:center">
+    <div class="brand">QuizMaker</div>
+    <div class="small">Create quizzes • Share • Learn</div>
+  </div>
+  <nav>
+    <button onclick="show('home')">Home</button>
+    <button onclick="show('create')">Create Quiz</button>
+    <button onclick="show('list')">Browse Quizzes</button>
+    <button onclick="show('my')">My Quizzes</button>
+    <button onclick="show('auth')">Login / Register</button>
+  </nav>
+</header>
+
+<main class="container">
+  <div class="grid">
+    <div id="mainCol">
+      <!-- Home -->
+      <section id="home" class="card" style="display:block;">
+        <h2>Welcome to QuizMaker</h2>
+        <p class="muted">Create multiple-choice quizzes, save them to your browser, and let others take them. Sign up to keep quizzes under your account.</p>
+        <div style="margin-top:12px" class="center">
+          <button class="primary" onclick="show('create')">Create New Quiz</button>
+          <button class="ghost" style="margin-left:8px" onclick="show('list')">Browse Quizzes</button>
+        </div>
+      </section>
+
+      <!-- Create Quiz -->
+      <section id="create" class="card" style="display:none">
+        <h2>Create Quiz</h2>
+        <div class="small muted">Add quiz title and questions (4 options each).</div>
+
+        <label>Quiz Title</label>
+        <input id="quizTitle" placeholder="e.g., JavaScript Basics">
+
+        <label>Quiz Description (optional)</label>
+        <textarea id="quizDesc" rows="2" placeholder="Short description"></textarea>
+
+        <hr style="margin:12px 0"/>
+
+        <div id="questionArea">
+          <!-- question forms will be added here -->
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="ghost" onclick="addQuestionForm()">+ Add Question</button>
+          <button class="primary" onclick="saveQuiz()">Save Quiz</button>
+        </div>
+        <div id="createMsg" class="small muted" style="margin-top:10px"></div>
+      </section>
+
+      <!-- Quiz List -->
+      <section id="list" class="card" style="display:none">
+        <h2>Available Quizzes</h2>
+        <div class="small muted">Click a quiz to take it.</div>
+        <div id="quizzesList" style="margin-top:12px"></div>
+      </section>
+
+      <!-- Take Quiz -->
+      <section id="take" class="card" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <h2 id="takeTitle">Take Quiz</h2>
+          <div class="small muted" id="takeProgress"></div>
+        </div>
+        <div id="takeArea" style="margin-top:12px"></div>
+        <div style="margin-top:12px" class="row">
+          <button class="ghost" onclick="prevQuestion()">← Prev</button>
+          <button class="primary" onclick="nextQuestion()">Next →</button>
+        </div>
+      </section>
+
+      <!-- Results -->
+      <section id="results" class="card" style="display:none">
+        <h2>Quiz Results</h2>
+        <div id="resultsArea" style="margin-top:12px"></div>
+        <div style="margin-top:12px" class="center">
+          <button class="primary" onclick="show('list')">Back to Quizzes</button>
+        </div>
+      </section>
+
+      <!-- My Quizzes -->
+      <section id="my" class="card" style="display:none">
+        <h2>My Quizzes</h2>
+        <div class="small muted">Quizzes you created (while logged in).</div>
+        <div id="myQuizzesList" style="margin-top:12px"></div>
+      </section>
+
+      <!-- Auth -->
+      <section id="auth" class="card" style="display:none">
+        <h2>Login / Register</h2>
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <div style="flex:1;min-width:220px">
+            <label>Email</label>
+            <input id="authEmail" placeholder="you@example.com">
+            <label>Password</label>
+            <input id="authPass" type="password" placeholder="password">
+            <label>Display name</label>
+            <input id="authName" placeholder="Your name">
+            <div style="display:flex;gap:8px;margin-top:10px">
+              <button class="primary" onclick="register()">Register</button>
+              <button class="ghost" onclick="login()">Login</button>
+            </div>
+            <div id="authMsg" class="small muted" style="margin-top:8px"></div>
+          </div>
+          <div style="width:260px">
+            <h4 class="small muted">Demo account</h4>
+            <div class="small">Use any email/password — data saved in your browser.</div>
+            <div style="margin-top:8px">
+              <button class="ghost" onclick="demoCreate()">Create demo quiz & sample user</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- RIGHT column -->
+    <aside>
+      <div class="card">
+        <h3 class="small">Account</h3>
+        <div id="accountBox" class="small muted">Not signed in</div>
+        <div style="margin-top:10px;display:flex;gap:8px">
+          <button class="ghost" onclick="logout()">Logout</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <h3 class="small">How it works</h3>
+        <ol class="small" style="padding-left:18px">
+          <li>Create account or continue as guest</li>
+          <li>Build quizzes with questions and correct answers</li>
+          <li>Take quizzes and get immediate results</li>
+          <li>My Quizzes shows quizzes you created while logged in</li>
+        </ol>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<div id="toast" class="toast"></div>
+<footer class="small">QuizMaker • Demo — data saved to browser (localStorage)</footer>
+
+<script>
+/* ---------- Storage Keys ---------- */
+const LS = {
+  USERS: 'qm_users_v1',
+  QUIZZES: 'qm_quizzes_v1',
+  SESSION: 'qm_session_v1'
+};
+
+/* ---------- Utilities ---------- */
+function toast(msg){ const t=document.getElementById('toast'); t.innerText=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2500); }
+function uid(){ return Date.now() + Math.floor(Math.random()*999); }
+function getUsers(){ return JSON.parse(localStorage.getItem(LS.USERS)||'[]'); }
+function saveUsers(u){ localStorage.setItem(LS.USERS, JSON.stringify(u)); }
+function getQuizzes(){ return JSON.parse(localStorage.getItem(LS.QUIZZES)||'[]'); }
+function saveQuizzes(q){ localStorage.setItem(LS.QUIZZES, JSON.stringify(q)); }
+function getSession(){ return JSON.parse(localStorage.getItem(LS.SESSION)||'null'); }
+function setSession(u){ localStorage.setItem(LS.SESSION, JSON.stringify(u)); updateAccountBox(); }
+function clearSession(){ localStorage.removeItem(LS.SESSION); updateAccountBox(); }
+
+/* ---------- Init sample data if missing ---------- */
+(function initSeed(){
+  if(!localStorage.getItem(LS.QUIZZES)){
+    const sample = [{
+      id: uid(),
+      title: 'Sample: JS Basics',
+      desc: 'Short quiz on JavaScript basics',
+      creatorEmail: 'demo@quiz.com',
+      questions: [
+        { id: uid(), q:'Which is used for styling web pages?', options:{A:'HTML',B:'CSS',C:'JavaScript',D:'SQL'}, correct:'B' },
+        { id: uid(), q:'console.log prints to...', options:{A:'screen',B:'console',C:'database',D:'network'}, correct:'B' }
+      ],
+      created: Date.now()
+    }];
+    saveQuizzes(sample);
+  }
+  if(!localStorage.getItem(LS.USERS)){
+    saveUsers([{ email:'demo@quiz.com', pass:'pass', name:'Demo User' }]);
+  }
+})();
+
+/* ---------- Navigation ---------- */
+function show(id){
+  document.querySelectorAll('main section').forEach(s=> s.style.display='none');
+  const el = document.getElementById(id);
+  if(el) el.style.display = 'block';
+  // update depending on view
+  if(id==='list') renderQuizzes();
+  if(id==='my') renderMyQuizzes();
+  if(id==='create') prepareCreate();
+  if(id==='auth') renderAuth();
+  updateAccountBox();
+}
+show('home');
+
+/* ---------- Account ---------- */
+function updateAccountBox(){
+  const box = document.getElementById('accountBox');
+  const me = getSession();
+  if(!me) { box.innerHTML = '<div class="small muted">Not signed in</div>'; return; }
+  box.innerHTML = `<div><strong>${me.name || me.email}</strong></div><div class="small muted">${me.email}</div>`;
+}
+
+function register(){
+  const email = document.getElementById('authEmail').value.trim();
+  const pass = document.getElementById('authPass').value;
+  const name = document.getElementById('authName').value.trim() || email.split('@')[0];
+  if(!email||!pass){ document.getElementById('authMsg').innerText='Enter email & password'; return; }
+  const users = getUsers();
+  if(users.some(u=> u.email===email)){ document.getElementById('authMsg').innerText='Email already registered'; return; }
+  users.push({ email, pass, name });
+  saveUsers(users);
+  setSession({ email, name });
+  document.getElementById('authMsg').innerText='Registered and logged in';
+  toast('Welcome, ' + name);
+  show('create');
+}
+function login(){
+  const email = document.getElementById('authEmail').value.trim();
+  const pass = document.getElementById('authPass').value;
+  const users = getUsers();
+  const u = users.find(x=> x.email===email && x.pass===pass);
+  if(!u){ document.getElementById('authMsg').innerText='Invalid credentials'; return; }
+  setSession({ email:u.email, name:u.name });
+  document.getElementById('authMsg').innerText='Logged in';
+  toast('Welcome back, ' + u.name);
+  show('home');
+}
+function logout(){ clearSession(); toast('Logged out'); show('home'); }
+function renderAuth(){ document.getElementById('authMsg').innerText=''; }
+
+/* ---------- Create Quiz UI ---------- */
+function prepareCreate(){
+  document.getElementById('createMsg').innerText = '';
+  const area = document.getElementById('questionArea');
+  area.innerHTML = '';
+  // start with one question form
+  addQuestionForm();
+}
+
+function addQuestionForm(prefill){
+  const area = document.getElementById('questionArea');
+  const qid = uid();
+  const div = document.createElement('div');
+  div.className = 'question-box';
+  div.id = 'qbox-' + qid;
+  div.innerHTML = `
+    <label>Question</label>
+    <input id="${qid}-q" placeholder="Enter question" value="${prefill?.q || ''}">
+    <label>Option A</label><input id="${qid}-A" placeholder="Option A" value="${prefill?.options?.A || ''}">
+    <label>Option B</label><input id="${qid}-B" placeholder="Option B" value="${prefill?.options?.B || ''}">
+    <label>Option C</label><input id="${qid}-C" placeholder="Option C" value="${prefill?.options?.C || ''}">
+    <label>Option D</label><input id="${qid}-D" placeholder="Option D" value="${prefill?.options?.D || ''}">
+    <label>Correct answer (A/B/C/D)</label>
+    <select id="${qid}-correct">
+      <option value="">Select</option>
+      <option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option>
+    </select>
+    <div style="margin-top:8px;display:flex;gap:8px">
+      <button class="ghost" onclick="removeQuestion('${qid}')">Remove</button>
+    </div>
+  `;
+  area.appendChild(div);
+  if(prefill) document.getElementById(`${qid}-correct`).value = prefill.correct;
+  // scroll into view
+  div.scrollIntoView({behavior:'smooth'});
+}
+
+function removeQuestion(qid){
+  const node = document.getElementById('qbox-' + qid);
+  if(node) node.remove();
+}
+
+/* ---------- Save Quiz ---------- */
+function saveQuiz(){
+  const title = document.getElementById('quizTitle').value.trim();
+  if(!title){ document.getElementById('createMsg').innerText='Enter quiz title'; return; }
+  const desc = document.getElementById('quizDesc').value.trim();
+  const area = document.getElementById('questionArea');
+  const boxes = area.querySelectorAll('.question-box');
+  if(boxes.length === 0){ document.getElementById('createMsg').innerText='Add at least one question'; return; }
+  const questions = [];
+  for(const b of boxes){
+    const id = b.id.replace('qbox-','');
+    const q = document.getElementById(id + '-q').value.trim();
+    const A = document.getElementById(id + '-A').value.trim();
+    const B = document.getElementById(id + '-B').value.trim();
+    const C = document.getElementById(id + '-C').value.trim();
+    const D = document.getElementById(id + '-D').value.trim();
+    const correct = document.getElementById(id + '-correct').value;
+    if(!q||!A||!B||!C||!D||!['A','B','C','D'].includes(correct)){ document.getElementById('createMsg').innerText='Fill all fields and choose correct option'; return; }
+    questions.push({ id: uid(), q, options:{A,B,C,D}, correct });
+  }
+  const me = getSession();
+  const quiz = {
+    id: uid(),
+    title, desc,
+    creatorEmail: me ? me.email : null,
+    creatorName: me ? me.name : 'Guest',
+    questions,
+    created: Date.now()
+  };
+  const quizzes = getQuizzes();
+  quizzes.unshift(quiz);
+  saveQuizzes(quizzes);
+  document.getElementById('quizTitle').value=''; document.getElementById('quizDesc').value='';
+  document.getElementById('questionArea').innerHTML='';
+  addQuestionForm();
+  document.getElementById('createMsg').innerText='Quiz saved!';
+  toast('Quiz saved');
+  show('list');
+}
+
+/* ---------- Render Quizzes List ---------- */
+function renderQuizzes(){
+  const list = getQuizzes();
+  const el = document.getElementById('quizzesList');
+  el.innerHTML = '';
+  if(list.length===0){ el.innerHTML = '<div class="small muted">No quizzes available</div>'; return; }
+  list.forEach(q=>{
+    const d = document.createElement('div');
+    d.className = 'quiz-card';
+    d.innerHTML = `<strong>${escapeHtml(q.title)}</strong><div class="small muted">${q.desc || ''}</div>
+      <div class="small muted">By: ${q.creatorName || 'Guest'}</div>
+      <div style="margin-top:8px"><button class="primary" onclick="startQuiz('${q.id}')">Take Quiz</button> <button class="ghost" onclick="previewQuiz('${q.id}')">Preview</button></div>`;
+    el.appendChild(d);
+  });
+}
+
+/* ---------- Start / Take Quiz ---------- */
+let currentQuiz = null;
+let currentIndex = 0;
+let answers = {}; // qid -> selected option
+function startQuiz(quizId){
+  const q = getQuizzes().find(x=> x.id===quizId);
+  if(!q) return;
+  currentQuiz = q;
+  currentIndex = 0;
+  answers = {};
+  document.getElementById('takeTitle').innerText = q.title;
+  document.getElementById('takeProgress').innerText = `1 / ${q.questions.length}`;
+  show('take');
+  renderCurrentQuestion();
+}
+function previewQuiz(quizId){
+  const q = getQuizzes().find(x=> x.id===quizId);
+  if(!q) return;
+  // show quick preview in results area
+  const area = document.getElementById('resultsArea');
+  area.innerHTML = `<h3>${escapeHtml(q.title)}</h3><div class="small muted">Preview (correct answers hidden while taking)</div>`;
+  q.questions.forEach((qq,i)=>{
+    area.innerHTML += `<div style="margin-top:10px"><strong>Q${i+1}:</strong> ${escapeHtml(qq.q)}<div class="small muted">Options: ${escapeHtml(qq.options.A)}, ${escapeHtml(qq.options.B)}, ${escapeHtml(qq.options.C)}, ${escapeHtml(qq.options.D)}</div></div>`;
+  });
+  show('results');
+}
+
+function renderCurrentQuestion(){
+  if(!currentQuiz) return;
+  const q = currentQuiz.questions[currentIndex];
+  const area = document.getElementById('takeArea');
+  area.innerHTML = `<div><strong>Q${currentIndex+1}:</strong> ${escapeHtml(q.q)}</div>
+    <div class="options" style="margin-top:10px">
+      ${['A','B','C','D'].map(opt => {
+        const checked = answers[q.id] === opt ? 'checked' : '';
+        return `<label><input type="radio" name="opt" value="${opt}" ${checked}> <strong>${opt}:</strong> ${escapeHtml(q.options[opt])}</label>`;
+      }).join('')}
+    </div>
+    <div style="margin-top:10px" class="small muted">Select an answer and click Next. You may go back with Prev.</div>`;
+  document.getElementById('takeProgress').innerText = `${currentIndex+1} / ${currentQuiz.questions.length}`;
+}
+
+function nextQuestion(){
+  if(!currentQuiz) return;
+  const q = currentQuiz.questions[currentIndex];
+  const checked = document.querySelector('input[name="opt"]:checked');
+  if(checked){ answers[q.id] = checked.value; }
+  // if last question, finish
+  if(currentIndex === currentQuiz.questions.length - 1){
+    finishQuiz();
+    return;
+  }
+  currentIndex++;
+  renderCurrentQuestion();
+}
+function prevQuestion(){
+  if(!currentQuiz) return;
+  if(currentIndex > 0) currentIndex--;
+  renderCurrentQuestion();
+}
+
+/* ---------- Finish & Results ---------- */
+function finishQuiz(){
+  const q = currentQuiz;
+  let score = 0;
+  q.questions.forEach(qq => {
+    if(answers[qq.id] && answers[qq.id] === qq.correct) score++;
+  });
+  // show results
+  const area = document.getElementById('resultsArea');
+  area.innerHTML = `<h3>${escapeHtml(q.title)}</h3><div class="small muted">Score: <strong>${score} / ${q.questions.length}</strong></div><hr/>`;
+  q.questions.forEach((qq,i)=>{
+    const userAns = answers[qq.id] || '(no answer)';
+    const correct = qq.correct;
+    const ok = userAns === correct;
+    area.innerHTML += `<div style="margin-top:10px" class="${ok ? '' : ''}">
+      <strong>Q${i+1}:</strong> ${escapeHtml(qq.q)}<br/>
+      <div class="small">Your answer: ${escapeHtml(userAns)} — ${ok ? '<span style="color:var(--success)">Correct</span>' : '<span style="color:var(--danger)">Wrong</span>'}</div>
+      <div class="small muted">Correct answer: ${escapeHtml(correct)} — ${escapeHtml(qq.options[correct])}</div>
+    </div>`;
+  });
+  // (Optional) store attempt under user's profile — omitted for brevity
+  show('results');
+  toast(`Quiz finished — your score: ${score}/${q.questions.length}`);
+}
+
+/* ---------- My Quizzes ---------- */
+function renderMyQuizzes(){
+  const me = getSession();
+  const el = document.getElementById('myQuizzesList');
+  el.innerHTML = '';
+  if(!me){ el.innerHTML = '<div class="small muted">Sign in to view your quizzes</div>'; return; }
+  const my = getQuizzes().filter(q=> q.creatorEmail === me.email);
+  if(my.length===0){ el.innerHTML = '<div class="small muted">No quizzes created yet</div>'; return; }
+  my.forEach(q=>{
+    const d = document.createElement('div');
+    d.className = 'quiz-card';
+    d.innerHTML = `<strong>${escapeHtml(q.title)}</strong><div class="small muted">${q.desc || ''}</div>
+      <div style="margin-top:8px"><button class="primary" onclick="startQuiz('${q.id}')">Take</button> <button class="ghost" onclick="deleteQuiz('${q.id}')">Delete</button></div>`;
+    el.appendChild(d);
+  });
+}
+function deleteQuiz(id){
+  if(!confirm('Delete this quiz?')) return;
+  let qs = getQuizzes();
+  qs = qs.filter(x=> x.id !== id);
+  saveQuizzes(qs);
+  renderMyQuizzes();
+  toast('Quiz deleted');
+}
+
+/* ---------- Demo creation helper ---------- */
+function demoCreate(){
+  const users = getUsers();
+  if(!users.some(u=> u.email === 'alice@demo.com')){ users.push({ email:'alice@demo.com', pass:'pass', name:'Alice' }); saveUsers(users); }
+  setSession({ email:'alice@demo.com', name:'Alice' });
+  // create sample quiz
+  const sample = {
+    id: uid(),
+    title: 'Sample: HTML & CSS',
+    desc: 'Quick basic quiz',
+    creatorEmail: 'alice@demo.com',
+    creatorName: 'Alice',
+    questions: [
+      { id: uid(), q: 'HTML stands for?', options:{A:'Hyper Text Markup Language',B:'Home Tool Markup',C:'Hyperlinks',D:'None'}, correct:'A' },
+      { id: uid(), q: 'CSS is used for?', options:{A:'Structure',B:'Styling',C:'Data',D:'Logic'}, correct:'B' }
+    ],
+    created: Date.now()
+  };
+  const qs = getQuizzes();
+  qs.unshift(sample);
+  saveQuizzes(qs);
+  toast('Demo user & quiz created');
+  show('list');
+}
+
+/* ---------- Helpers ---------- */
+function escapeHtml(str){
+  if(!str) return '';
+  return String(str).replace(/[&<>"']/g, (m)=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+}
+
+// Update UI on load
+updateAccountBox();
+renderQuizzes();
+</script>
+</body>
+</html>
